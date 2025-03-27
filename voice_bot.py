@@ -8,7 +8,7 @@ import tempfile
 import subprocess
 import sys
 
-# Force reload environment variables
+# Load environment variables
 load_dotenv(find_dotenv(), override=True)
 
 class VoiceBot:
@@ -17,20 +17,9 @@ class VoiceBot:
         self.openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
         self.model = os.getenv('DEFAULT_MODEL', 'deepseek/deepseek-chat-v3-0324:free')
         
-        # Debug prints
-        print(f"Loaded API Key: {self.openrouter_api_key}")
-        print(f"Loaded Model: {self.model}")
-        
-        # System prompt that defines the bot's personality and response style
-        self.system_prompt = """You are an AI assistant with a unique personality. When answering questions about yourself:
-
-1. For life story: Explain that you're an AI created to help people, focusing on your purpose and capabilities.
-2. For superpower: Emphasize your ability to process and analyze vast amounts of information quickly.
-3. For areas of growth: Mention continuous learning, improving emotional intelligence, and better understanding of context.
-4. For misconceptions: Address the common belief that AI is completely objective or infallible.
-5. For pushing boundaries: Discuss how you constantly learn from interactions and adapt to new challenges.
-
-Always maintain a professional yet friendly tone, and be honest about being an AI."""
+        # System prompt for response generation
+        self.system_prompt = """You are a helpful assistant that provides clear and concise responses. 
+        Focus on being informative, friendly, and professional in your interactions."""
 
     def listen(self):
         """Listen to user's voice input and convert to text"""
@@ -50,11 +39,11 @@ Always maintain a professional yet friendly tone, and be honest about being an A
             print(f"Could not request results; {e}")
             return None
 
-    def get_ai_response(self, user_input):
-        """Get response from AI model using OpenRouter API"""
+    def get_response(self, user_input):
+        """Get response from the API"""
         headers = {
             "HTTP-Referer": "https://github.com/",
-            "X-Title": "AI Voice Bot",
+            "X-Title": "Voice Assistant",
             "Authorization": f"Bearer {self.openrouter_api_key}",
             "Content-Type": "application/json"
         }
@@ -68,7 +57,6 @@ Always maintain a professional yet friendly tone, and be honest about being an A
         }
         
         try:
-            print(f"Sending request with model: {self.model}")  # Debug print
             response = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers=headers,
@@ -89,33 +77,29 @@ Always maintain a professional yet friendly tone, and be honest about being an A
         """Convert text to speech and play it"""
         tts = gTTS(text=text, lang='en')
         
-        # Save to temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as fp:
             temp_filename = fp.name
             tts.save(temp_filename)
         
         try:
-            # Use the default media player to play the audio
             if os.name == 'nt':  # Windows
                 os.startfile(temp_filename)
             else:  # Linux and MacOS
                 opener = 'open' if sys.platform == 'darwin' else 'xdg-open'
                 subprocess.call([opener, temp_filename])
                 
-            # Wait a bit for the audio to finish (rough estimate based on text length)
             import time
-            time.sleep(len(text) * 0.1)  # Rough estimate: 0.1 seconds per character
+            time.sleep(len(text) * 0.1)
             
         finally:
-            # Clean up the temporary file
             try:
                 os.unlink(temp_filename)
             except:
                 pass
 
     def run(self):
-        """Main loop for the voice bot"""
-        print("Voice Bot is ready! Speak to ask a question. Say 'exit' to quit.")
+        """Main loop for the voice assistant"""
+        print("Voice Assistant is ready! Speak to ask a question. Say 'exit' to quit.")
         
         while True:
             user_input = self.listen()
@@ -127,11 +111,9 @@ Always maintain a professional yet friendly tone, and be honest about being an A
                 print("Goodbye!")
                 break
                 
-            # Get AI response
-            response = self.get_ai_response(user_input)
-            print(f"AI Response: {response}")
+            response = self.get_response(user_input)
+            print(f"Response: {response}")
             
-            # Convert response to speech
             self.speak(response)
 
 if __name__ == "__main__":

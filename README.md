@@ -1,6 +1,6 @@
-# AI Voice Assistant
+# Voice Assistant
 
-A web-based AI voice assistant that uses OpenRouter API for text generation and Google's Text-to-Speech for voice output.
+A web-based voice assistant that provides interactive responses using text-to-speech technology.
 
 ## Features
 
@@ -49,12 +49,12 @@ A web-based AI voice assistant that uses OpenRouter API for text generation and 
 
 ## Example Questions
 
-The bot is designed to answer questions about itself, such as:
-- What should we know about your life story in a few sentences?
-- What's your #1 superpower?
-- What are the top 3 areas you'd like to grow in?
-- What misconception do your coworkers have about you?
-- How do you push your boundaries and limits?
+The assistant can answer various questions, including:
+- Tell me about yourself
+- What are your capabilities?
+- What are your limitations?
+- How do you handle different situations?
+- What makes you unique?
 
 ## Troubleshooting
 
