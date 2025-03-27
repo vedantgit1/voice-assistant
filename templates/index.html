@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .chat-container {
+            height: calc(100vh - 200px);
+        }
+        .message {
+            max-width: 80%;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .user-message {
+            background-color: #2563eb;
+            color: white;
+            border-radius: 1.5rem 1.5rem 0 1.5rem;
+            margin-left: auto;
+        }
+        .bot-message {
+            background-color: #f8fafc;
+            color: #1e293b;
+            border-radius: 1.5rem 1.5rem 1.5rem 0;
+            border: 1px solid #e2e8f0;
+        }
+        .recording {
+            animation: pulse 1.5s infinite;
+            background-color: #dc2626 !important;
+            box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.2);
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .input-container {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 0.5rem;
+        }
+        .btn {
+            transition: all 0.2s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+        .typing-indicator {
+            display: none;
+            padding: 1rem;
+            background-color: #f8fafc;
+            border-radius: 1.5rem 1.5rem 1.5rem 0;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 1rem;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #94a3b8;
+            border-radius: 50%;
+            margin-right: 4px;
+            animation: typing 1s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">AI Voice Assistant</h1>
+            <p class="text-gray-600">Your intelligent conversational partner</p>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-xl p-6">
+            <div id="chat-container" class="chat-container overflow-y-auto mb-4 space-y-4 p-4">
+                <!-- Messages will be added here -->
+                <div id="typing-indicator" class="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+            
+            <div class="input-container">
+                <div class="flex space-x-3">
+                    <input type="text" id="user-input" 
+                           class="flex-1 p-3 bg-transparent border-none focus:outline-none focus:ring-0 text-gray-700 placeholder-gray-400"
+                           placeholder="Type your message here...">
+                    <button onclick="toggleVoiceInput()" id="voice-btn"
+                            class="btn bg-blue-500 text-white px-4 py-3 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button onclick="stopAudio()" id="stop-btn"
+                            class="btn bg-red-500 text-white px-4 py-3 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 hidden">
+                        <i class="fas fa-stop"></i>
+                    </button>
+                    <button onclick="sendMessage()" id="send-btn"
+                            class="btn gradient-bg text-white px-6 py-3 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const voiceBtn = document.getElementById('voice-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const sendBtn = document.getElementById('send-btn');
+        const typingIndicator = document.getElementById('typing-indicator');
+        let audioPlayer = null;
+        let recognition = null;
+        let isListening = false;
+
+        // Initialize speech recognition
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = function(event) {
+                const text = event.results[0][0].transcript;
+                userInput.value = text;
+                // Automatically send the message after voice input
+                sendMessage();
+            };
+
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+                stopVoiceInput();
+                alert('Error with speech recognition. Please try again.');
+            };
+
+            recognition.onend = function() {
+                stopVoiceInput();
+            };
+        }
+
+        function toggleVoiceInput() {
+            if (!recognition) {
+                alert('Speech recognition is not supported in your browser. Please use Chrome.');
+                return;
+            }
+
+            if (!isListening) {
+                startVoiceInput();
+            } else {
+                stopVoiceInput();
+            }
+        }
+
+        function startVoiceInput() {
+            recognition.start();
+            isListening = true;
+            voiceBtn.classList.add('recording');
+            voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
+            // Disable send button while recording
+            sendBtn.disabled = true;
+        }
+
+        function stopVoiceInput() {
+            if (recognition) {
+                recognition.stop();
+            }
+            isListening = false;
+            voiceBtn.classList.remove('recording');
+            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            // Enable send button after recording
+            sendBtn.disabled = false;
+        }
+
+        function addMessage(message, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message p-4 ${isUser ? 'user-message' : 'bot-message'}`;
+            messageDiv.textContent = message;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            typingIndicator.style.display = 'block';
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            typingIndicator.style.display = 'none';
+        }
+
+        function playAudio(audioBase64) {
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
+            }
+            
+            const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+            audioPlayer = audio;
+            audio.play();
+            stopBtn.classList.remove('hidden');
+
+            audio.onended = () => {
+                stopBtn.classList.add('hidden');
+            };
+        }
+
+        function stopAudio() {
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
+                stopBtn.classList.add('hidden');
+            }
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Disable input and buttons while processing
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+            voiceBtn.disabled = true;
+
+            // Add user message and show typing indicator
+            addMessage(message, true);
+            userInput.value = '';
+            showTypingIndicator();
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message }),
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    hideTypingIndicator();
+                    addMessage(data.response);
+                    if (data.audio) {
+                        playAudio(data.audio);
+                    }
+                } else {
+                    hideTypingIndicator();
+                    addMessage('Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                hideTypingIndicator();
+                addMessage('Sorry, there was an error processing your request.');
+            } finally {
+                // Re-enable input and buttons
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                voiceBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        // Allow sending message with Enter key
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !userInput.disabled) {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html> 
